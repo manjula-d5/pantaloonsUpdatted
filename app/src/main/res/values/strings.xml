@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">Pantaloons</string>
+    <string name="featured_section_title">Featured try-on item</string>
+    <string name="bottom_strip_title">Recent fitting-room entries (5 min)</string>
+    <string name="label_product">Product</string>
+    <string name="label_sku">SKU</string>
+    <string name="label_tag">Tag</string>
+    <string name="label_location">Try-on location</string>
+    <string name="label_brand">Brand</string>
+    <string name="label_category">Category</string>
+    <string name="label_department">Department</string>
+    <string name="label_gender">Gender</string>
+    <string name="label_color">Color</string>
+    <string name="label_size">Size</string>
+    <string name="label_duration">Duration</string>
+    <string name="label_status">Status</string>
+    <string name="label_started">Start time</string>
+    <string name="label_ended">End time</string>
+    <string name="label_last_updated">Last updated</string>
+    <string name="label_polling">Polling every 10 seconds</string>
+    <string name="action_retry">Retry</string>
+    <string name="empty_state_title">No try-on items found</string>
+    <string name="empty_state_message">Waiting for the API to return recent fitting-room activity.</string>
+    <string name="selection_prompt">Which one do you want to try first?</string>
+    <string name="placeholder_image">Image pending</string>
+    <string name="splash_logo_description">Pantaloons logo</string>
+    <string name="variant_size_text">Size: %1$s</string>
+    <string name="no_variants_message">No color variants available</string>
+</resources>
