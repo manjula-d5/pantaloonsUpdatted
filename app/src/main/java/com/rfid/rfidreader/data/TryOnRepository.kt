@@ -1,11 +1,14 @@
 package com.rfid.rfidreader.data
 
+import android.content.Context
 import com.rfid.rfidreader.BuildConfig
 import com.rfid.rfidreader.data.api.CheckoutRequest
 import com.rfid.rfidreader.data.api.CheckoutResponse
 import com.rfid.rfidreader.data.api.ColorVariantItem
 import com.rfid.rfidreader.data.api.ItemRatingRequest
 import com.rfid.rfidreader.data.api.ItemRatingResponse
+import com.rfid.rfidreader.data.api.LoginRequest
+import com.rfid.rfidreader.data.api.LoginResponse
 import com.rfid.rfidreader.data.api.SimilarProductItem
 import com.rfid.rfidreader.data.api.TryOnApiService
 import com.google.gson.Gson
@@ -15,9 +18,11 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.rfid.rfidreader.model.TryOnDisplayItem
 import com.rfid.rfidreader.model.TryOnItemMapper
+import com.rfid.rfidreader.util.AppLogger
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -31,12 +36,14 @@ import retrofit2.converter.gson.GsonConverterFactory
  * - Ensures real-time fresh data on every request
  */
 class TryOnRepository(
-    private val service: TryOnApiService
+    private val service: TryOnApiService,
+    private val sessionManager: SessionManager? = null
 ) {
     suspend fun fetchRecentTryOns(): List<TryOnDisplayItem> {
         // Fetch only recent fitting room entries without fallback
         // When API returns empty, we should show empty state, NOT old data
-        val recentItems = service.getRecentFittingRoomEntries().data
+        val storeId = sessionManager?.storeId?.takeIf { it.isNotBlank() } ?: "d2df29a0-fa40-47df-8c9d-0cdad35e040d"
+        val recentItems = service.getRecentTrialRoomItems(storeId).data
         
         // Remove fallback to getTodaysTryOnItems() to prevent showing stale data
         // OLD CODE: val source = if (recentItems.isNotEmpty()) recentItems else service.getTodaysTryOnItems().data
@@ -46,8 +53,11 @@ class TryOnRepository(
             .sortedByDescending { it.eventTimestampMillis ?: Long.MIN_VALUE }
     }
 
-    suspend fun getFittingRoomLocations(): List<String> {
-        return service.getFittingRoomLocations().data
+    fun getFittingRoomLocations(): List<String> {
+        // API disabled by request
+        // val storeId = sessionManager?.storeId?.takeIf { it.isNotBlank() } ?: "d2df29a0-fa40-47df-8c9d-0cdad35e040d"
+        // return service.getTrialRooms(storeId).data
+        return emptyList()
     }
 
     suspend fun fetchColorVariants(sku: String): List<ColorVariantItem> {
@@ -121,18 +131,48 @@ class TryOnRepository(
         return service.submitItemRating(request)
     }
 
+    suspend fun login(usernameOrEmail: String, password: String): Response<LoginResponse> {
+        val request = LoginRequest(
+            usernameOrEmail = usernameOrEmail,
+            password = password
+        )
+        return service.login(request)
+    }
+
+    fun getSessionStoreId(): String? = sessionManager?.storeId
+
     companion object {
         private val gson = Gson()
 
-        fun create(): TryOnRepository {
+        fun create(context: Context? = null): TryOnRepository {
             val logging = HttpLoggingInterceptor().apply {
                 level = HttpLoggingInterceptor.Level.BASIC
             }
-            val authToken = BuildConfig.TRYON_AUTH_TOKEN.trim()
+
+            // Custom interceptor to log all network activity to file
+            val fileLoggingInterceptor = Interceptor { chain ->
+                val request = chain.request()
+                AppLogger.log("NETWORK REQ: ${request.method} ${request.url}")
+                
+                val response = try {
+                    chain.proceed(request)
+                } catch (e: Exception) {
+                    AppLogger.logError("NETWORK FAILED: ${request.url}", e)
+                    throw e
+                }
+
+                AppLogger.log("NETWORK RESP: ${response.code} ${request.url}")
+                response
+            }
+            
+            val sessionManager = context?.let { SessionManager(it) }
+            
             val authInterceptor = Interceptor { chain ->
                 val requestBuilder = chain.request().newBuilder()
-                if (authToken.isNotEmpty()) {
-                    val headerValue = if (authToken.contains(' ')) authToken else "Bearer $authToken"
+                val token = sessionManager?.authToken ?: BuildConfig.TRYON_AUTH_TOKEN.trim()
+                
+                if (token.isNotEmpty()) {
+                    val headerValue = if (token.contains(' ')) token else "Bearer $token"
                     requestBuilder.header("Authorization", headerValue)
                 }
                 chain.proceed(requestBuilder.build())
@@ -155,6 +195,7 @@ class TryOnRepository(
             }
             
             val okHttpClient = OkHttpClient.Builder()
+                .addInterceptor(fileLoggingInterceptor) // Add file logger
                 .addInterceptor(authInterceptor)
                 .addInterceptor(noCacheInterceptor)  // Add no-cache interceptor
                 .addInterceptor(logging)
@@ -167,7 +208,8 @@ class TryOnRepository(
                 .build()
 
             return TryOnRepository(
-                service = retrofit.create(TryOnApiService::class.java)
+                service = retrofit.create(TryOnApiService::class.java),
+                sessionManager = sessionManager
             )
         }
 

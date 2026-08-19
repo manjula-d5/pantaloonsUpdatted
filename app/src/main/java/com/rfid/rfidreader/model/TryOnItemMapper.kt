@@ -1,6 +1,7 @@
 package com.rfid.rfidreader.model
 
 import com.rfid.rfidreader.data.api.TryOnApiItem
+import com.rfid.rfidreader.util.AppLogger
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -68,7 +69,8 @@ object TryOnItemMapper {
                     timeZone = TimeZone.getDefault()
                 }.parse(it)
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            AppLogger.logError("Date parsing failed for: $this", e)
             null
         }
 

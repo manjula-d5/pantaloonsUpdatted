@@ -31,6 +31,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -48,6 +52,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -102,7 +107,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 
@@ -111,7 +115,10 @@ import androidx.compose.material3.DropdownMenuItem
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-fun TryOnRoute(viewModel: TryOnViewModel) {
+fun TryOnRoute(
+    viewModel: TryOnViewModel,
+    onLogout: () -> Unit
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -143,7 +150,8 @@ fun TryOnRoute(viewModel: TryOnViewModel) {
         onBack = viewModel::clearSelection,
         onChatClicked = viewModel::callStaffAssistance,
         onSimilarProductSelected = viewModel::selectSimilarProduct,
-        onSubmitRating = viewModel::submitRating
+        onSubmitRating = viewModel::submitRating,
+        onLogout = onLogout
     )
 }
 
@@ -163,7 +171,8 @@ fun TryOnScreen(
     onBack: () -> Unit,
     onChatClicked: () -> Unit = {},
     onSimilarProductSelected: (SimilarProductItem) -> Unit = {},
-    onSubmitRating: (epc: String?, sku: String?, rating: Float, feedback: String?) -> Unit = { _, _, _, _ -> }
+    onSubmitRating: (epc: String?, sku: String?, rating: Float, feedback: String?) -> Unit = { _, _, _, _ -> },
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
 
@@ -217,7 +226,8 @@ fun TryOnScreen(
             ) {
                 PantaloonsTopBanner(
                     uiState = uiState,
-                    onLocationSelected = onLocationSelected
+                    onLocationSelected = onLocationSelected,
+                    onLogout = onLogout
                 )
 
                 Column(
@@ -471,9 +481,34 @@ private fun WelcomeProductItem(item: TryOnDisplayItem, onClick: () -> Unit) {
 @Composable
 private fun PantaloonsTopBanner(
     uiState: TryOnUiState,
-    onLocationSelected: (String) -> Unit
+    onLocationSelected: (String) -> Unit,
+    onLogout: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var moreMenuExpanded by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("Logout", color = Color.Black) },
+            text = { Text("Are you sure you want to logout?", color = Color.Black) },
+            containerColor = Color.White,
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutDialog = false
+                    onLogout()
+                }) {
+                    Text("Logout", color = Color.Black)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("Cancel", color = Color.Black)
+                }
+            }
+        )
+    }
 
     Row(
         modifier = Modifier
@@ -483,7 +518,6 @@ private fun PantaloonsTopBanner(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-
         Text(
             text = "WELCOME TO PANTALOONS",
             style = MaterialTheme.typography.titleMedium,
@@ -491,65 +525,119 @@ private fun PantaloonsTopBanner(
             color = Color.White
         )
 
-        Box {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (uiState.availableLocations.size > 1) {
+                Box {
+                    Surface(
+                        onClick = { expanded = true },
+                        color = Color.White.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = uiState.selectedLocation.ifBlank { "TRIAL ROOM" }.uppercase(),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
 
-            Row(
-                modifier = Modifier.clickable {
-                    expanded = true
-                },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                            Spacer(modifier = Modifier.width(8.dp))
 
-                Text(
-                    text = if (uiState.selectedLocation == "ALL")
-                        "Show All"
-                    else
-                        uiState.selectedLocation
-                            .replace("_", " ")
-                            .replaceFirstChar { it.uppercase() },
-                    color = Color.White
-                )
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = null,
+                                tint = Color.White
+                            )
+                        }
+                    }
 
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = null,
-                    tint = Color.White
-                )
+                    DropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = {
+                            expanded = false
+                        },
+                        modifier = Modifier
+                            .background(Color.White)
+                            .widthIn(min = 160.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "Show All",
+                                    color = if (uiState.selectedLocation.isBlank()) Color(0xFF1BB8B4) else Color.Black,
+                                    fontWeight = if (uiState.selectedLocation.isBlank()) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                expanded = false
+                                onLocationSelected("")
+                            }
+                        )
+
+                        uiState.availableLocations.forEach { location ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        location,
+                                        color = if (uiState.selectedLocation == location) Color(0xFF1BB8B4) else Color.Black,
+                                        fontWeight = if (uiState.selectedLocation == location) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    expanded = false
+                                    onLocationSelected(location)
+                                }
+                            )
+                        }
+                    }
+                }
+            } else if (uiState.selectedLocation.isNotBlank()) {
+                Surface(
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.padding(end = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = uiState.selectedLocation.uppercase(),
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
             }
 
-            DropdownMenu(
-                expanded = expanded,
-                onDismissRequest = {
-                    expanded = false
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Box {
+                IconButton(onClick = { moreMenuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = Color.White
+                    )
                 }
-            ) {
 
-                DropdownMenuItem(
-                    text = {
-                        Text("Show All")
-                    },
-                    onClick = {
-                        expanded = false
-                        onLocationSelected("ALL")
-                    }
-                )
-
-                uiState.availableLocations.forEach { location ->
-
+                DropdownMenu(
+                    expanded = moreMenuExpanded,
+                    onDismissRequest = { moreMenuExpanded = false },
+                    modifier = Modifier.background(Color.White)
+                ) {
                     DropdownMenuItem(
-                        text = {
-                            Text(
-                                location
-                                    .replace("_", " ")
-                                    .replaceFirstChar { it.uppercase() }
-                            )
-                        },
+                        text = { Text("Logout", color = Color.Black) },
                         onClick = {
-                            expanded = false
-                            onLocationSelected(location)
+                            moreMenuExpanded = false
+                            showLogoutDialog = true
                         }
                     )
-
                 }
             }
         }
@@ -1522,9 +1610,9 @@ private fun List<String>.sortedBySizeOrder(): List<String> {
 // Preview
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Preview(showBackground = true, widthDp = 1200, heightDp = 800)
+@Preview(showBackground = true, widthDp = 1200, heightDp = 800, name = "Selection Screen")
 @Composable
-private fun TryOnScreenPreview() {
+private fun TryOnScreenSelectionPreview() {
     RFIDREADERTheme(dynamicColor = false) {
         TryOnScreen(
             uiState = TryOnUiState(
@@ -1538,7 +1626,71 @@ private fun TryOnScreenPreview() {
             onVariantSelected = {},
             onSizeSelected = {},
             onLocationSelected = {},
-            onBack = {}
+            onBack = {},
+            onLogout = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 1200, heightDp = 800, name = "Product Detail")
+@Composable
+private fun TryOnScreenDetailPreview() {
+    RFIDREADERTheme(dynamicColor = false) {
+        TryOnScreen(
+            uiState = TryOnUiState(
+                items = sampleItems,
+                selectedItemId = "1",
+                isLoading = false,
+                lastUpdated = "25 May 2026, 06:15:10 PM",
+                availableLocations = listOf("fitting_room_1", "fitting_room_2")
+            ),
+            onRetry = {},
+            onItemSelected = {},
+            onVariantSelected = {},
+            onSizeSelected = {},
+            onLocationSelected = {},
+            onBack = {},
+            onLogout = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 1200, heightDp = 800, name = "Empty State")
+@Composable
+private fun TryOnScreenEmptyPreview() {
+    RFIDREADERTheme(dynamicColor = false) {
+        TryOnScreen(
+            uiState = TryOnUiState(
+                items = emptyList(),
+                isLoading = false
+            ),
+            onRetry = {},
+            onItemSelected = {},
+            onVariantSelected = {},
+            onSizeSelected = {},
+            onLocationSelected = {},
+            onBack = {},
+            onLogout = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 1200, heightDp = 800, name = "Loading State")
+@Composable
+private fun TryOnScreenLoadingPreview() {
+    RFIDREADERTheme(dynamicColor = false) {
+        TryOnScreen(
+            uiState = TryOnUiState(
+                items = emptyList(),
+                isLoading = true
+            ),
+            onRetry = {},
+            onItemSelected = {},
+            onVariantSelected = {},
+            onSizeSelected = {},
+            onLocationSelected = {},
+            onBack = {},
+            onLogout = {}
         )
     }
 }

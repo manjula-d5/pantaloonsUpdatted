@@ -19,6 +19,7 @@ import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -31,18 +32,48 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.rfid.rfidreader.R
-import kotlinx.coroutines.launch
+import com.rfid.rfidreader.ui.theme.RFIDREADERTheme
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
+fun LoginScreen(
+    viewModel: LoginViewModel = viewModel(factory = LoginViewModel.Factory(LocalContext.current)),
+    onLoginSuccess: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+    LoginContent(
+        uiState = uiState,
+        onLogin = viewModel::login,
+        onLoginSuccess = onLoginSuccess,
+        resetSuccess = viewModel::resetSuccess
+    )
+}
+
+@Composable
+private fun LoginContent(
+    uiState: LoginUiState,
+    onLogin: (String, String) -> Unit,
+    onLoginSuccess: () -> Unit,
+    resetSuccess: () -> Unit
+) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
-    var isLoading by remember { mutableStateOf(false) }
-    var errorMessage by remember { mutableStateOf("") }
+    var localErrorMessage by remember { mutableStateOf("") }
+    
+    val isLoading = uiState.isLoading
+    val errorMessage = uiState.errorMessage ?: localErrorMessage
+    
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(uiState.loginSuccess) {
+        if (uiState.loginSuccess) {
+            onLoginSuccess()
+            resetSuccess()
+        }
+    }
 
     // Detect screen configuration for responsive layout
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -134,7 +165,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     value = username,
                     onValueChange = {
                         username = it
-                        errorMessage = ""
+                        localErrorMessage = ""
                     },
                     label = { Text("Username") },
                     leadingIcon = {
@@ -168,7 +199,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     value = password,
                     onValueChange = {
                         password = it
-                        errorMessage = ""
+                        localErrorMessage = ""
                     },
                     label = { Text("Password") },
                     leadingIcon = {
@@ -209,14 +240,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         onDone = {
                             focusManager.clearFocus()
                             if (username.isNotBlank() && password.isNotBlank()) {
-                                performLogin(
-                                    username = username,
-                                    password = password,
-                                    onLoading = { isLoading = it },
-                                    onError = { errorMessage = it },
-                                    onSuccess = onLoginSuccess,
-                                    coroutineScope = coroutineScope
-                                )
+                                onLogin(username, password)
                             }
                         }
                     )
@@ -240,18 +264,11 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     onClick = {
                         focusManager.clearFocus()
                         if (username.isBlank()) {
-                            errorMessage = "Please enter username"
+                            localErrorMessage = "Please enter username"
                         } else if (password.isBlank()) {
-                            errorMessage = "Please enter password"
+                            localErrorMessage = "Please enter password"
                         } else {
-                            performLogin(
-                                username = username,
-                                password = password,
-                                onLoading = { isLoading = it },
-                                onError = { errorMessage = it },
-                                onSuccess = onLoginSuccess,
-                                coroutineScope = coroutineScope
-                            )
+                            onLogin(username, password)
                         }
                     },
                     modifier = Modifier
@@ -296,33 +313,16 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
     }
 }
 
-private fun performLogin(
-    username: String,
-    password: String,
-    onLoading: (Boolean) -> Unit,
-    onError: (String) -> Unit,
-    onSuccess: () -> Unit,
-    coroutineScope: kotlinx.coroutines.CoroutineScope
-) {
-    onLoading(true)
-
-    // Hardcoded credentials
-    coroutineScope.launch {
-        kotlinx.coroutines.delay(1000)
-
-        val normalizedUsername = username.trim()
-        val normalizedPassword = password.trim()
-
-        // Validate credentials: username = "admin", password = "admin1234"
-        // Accept the older password too so existing testers are not blocked.
-        if (normalizedUsername.equals("admin", ignoreCase = true) &&
-            (normalizedPassword == "admin123")
-        ) {
-            onLoading(false)
-            onSuccess()
-        } else {
-            onLoading(false)
-            onError("Invalid username or password. Please try again.")
-        }
+@Preview(showBackground = true, widthDp = 1000, heightDp = 800)
+@Composable
+private fun LoginScreenPreview() {
+    RFIDREADERTheme(dynamicColor = false) {
+        LoginContent(
+            uiState = LoginUiState(),
+            onLogin = { _, _ -> },
+            onLoginSuccess = {},
+            resetSuccess = {}
+        )
     }
 }
+

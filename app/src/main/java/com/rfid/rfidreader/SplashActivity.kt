@@ -8,11 +8,14 @@ import android.os.Looper
 import android.widget.ImageView
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
+import com.rfid.rfidreader.util.AppLogger
 
 @SuppressLint("CustomSplashScreen")
 class SplashActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppLogger.init(this)
+        AppLogger.log("SplashActivity onCreate")
         setContentView(R.layout.activity_splash)
 
         val splashLogo = findViewById<ImageView>(R.id.splashLogo)

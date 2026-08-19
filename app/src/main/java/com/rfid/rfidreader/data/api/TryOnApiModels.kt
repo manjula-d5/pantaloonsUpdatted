@@ -6,14 +6,15 @@ data class TryOnApiResponse(
     val success: Boolean? = null,
     val message: String? = null,
     val status: Int? = null,
-    val data: List<TryOnApiItem> = emptyList()
+    val data: List<TryOnApiItem> = emptyList(),
+    val timestamp: String? = null
 )
 
 data class FittingRoomResponse(
-    val success: Boolean,
-    val message: String,
     val status: Int,
-    val data: List<String>
+    val message: String,
+    val data: List<String>,
+    val timestamp: String? = null
 )
 
 data class TryOnApiItem(
@@ -124,4 +125,46 @@ data class ItemRatingResponse(
     val success: Boolean? = null,
     val message: String? = null,
     val status: Int? = null
+)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Auth
+// ─────────────────────────────────────────────────────────────────────────────
+
+data class LoginRequest(
+    val usernameOrEmail: String,
+    val password: String
+)
+
+data class LoginResponse(
+    val status: Int,
+    val message: String,
+    val data: LoginData?,
+    val timestamp: String?
+)
+
+data class LoginData(
+    val accessToken: String,
+    val refreshToken: String,
+    val tokenType: String,
+    val expiresInSeconds: Long,
+    val user: UserData?
+)
+
+data class UserData(
+    val userId: String,
+    val storeId: String,
+    val tenantId: String?,
+    val fullname: String,
+    val username: String,
+    val email: String,
+    val phoneNo: String,
+    val roleId: String,
+    val roleName: String,
+    val storeTenantId: String?,
+    val tenantName: String,
+    val trialRoomId: Int?,
+    val trialRoomName: String?,
+    val isActive: Boolean,
+    val createdAt: String
 )

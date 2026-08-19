@@ -17,7 +17,9 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-        buildConfigField("String", "TRYON_BASE_URL", "\"http://103.189.89.76:8080/\"")
+//        buildConfigField("String", "TRYON_BASE_URL", "\"http://103.189.89.76:8080/\"")
+      buildConfigField("String", "TRYON_BASE_URL", "\"http://10.1.2.116:8085/\"")
+
         buildConfigField("String", "TRYON_AUTH_TOKEN", "\"\"")
         buildConfigField("long", "TRYON_POLL_INTERVAL_MS", "5000L")
 
@@ -48,6 +50,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.lifecycle.runtime.compose)
     implementation(libs.lifecycle.viewmodel.ktx)
+    implementation(libs.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

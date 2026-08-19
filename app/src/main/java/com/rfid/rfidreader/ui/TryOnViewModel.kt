@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.rfid.rfidreader.BuildConfig
+import com.rfid.rfidreader.data.SessionManager
 import com.rfid.rfidreader.data.TryOnRepository
 import com.rfid.rfidreader.data.api.ColorVariantItem
 import com.rfid.rfidreader.data.api.SimilarProductItem
 import com.rfid.rfidreader.model.TryOnDisplayItem
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +25,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import android.content.Context
+import com.rfid.rfidreader.util.AppLogger
 
 data class TryOnUiState(
     val items: List<TryOnDisplayItem> = emptyList(),
@@ -45,8 +49,7 @@ data class TryOnUiState(
     val errorMessage: String? = null,
     val lastUpdated: String = "--",
     val availableLocations: List<String> = emptyList(),
-    val selectedLocation: String = "ALL"
-
+    val selectedLocation: String = ""
 ) {
     /** The item currently being previewed — similar-product override takes priority. */
     val featuredItem: TryOnDisplayItem?
@@ -56,7 +59,7 @@ data class TryOnUiState(
 
     val filteredItems: List<TryOnDisplayItem>
         get() =
-            if (selectedLocation == "ALL") {
+            if (selectedLocation.isBlank()) {
                 items
             } else {
                 items.filter {
@@ -67,9 +70,14 @@ data class TryOnUiState(
 
 class TryOnViewModel(
     private val repository: TryOnRepository,
+    private val sessionManager: SessionManager? = null,
     private val context: Context? = null
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow(TryOnUiState())
+    private val _uiState = MutableStateFlow(
+        TryOnUiState(
+            selectedLocation = sessionManager?.trialRoomName ?: ""
+        )
+    )
     val uiState: StateFlow<TryOnUiState> = _uiState.asStateFlow()
 
     /**
@@ -104,10 +112,12 @@ class TryOnViewModel(
     }
 
     fun selectLocation(location: String) {
+        AppLogger.log("Location selected: $location")
         _uiState.update { state ->
+            // ... (rest of the method)
 
             val filtered =
-                if (location == "ALL")
+                if (location.isBlank())
                     state.items
                 else
                     state.items.filter {
@@ -129,6 +139,7 @@ class TryOnViewModel(
     }
 
     fun selectItem(itemId: String) {
+        AppLogger.log("Item selected: $itemId")
         val currentState = _uiState.value
         if (
             (currentState.selectedItemId == itemId && currentState.variants.isNotEmpty()) ||
@@ -215,10 +226,12 @@ class TryOnViewModel(
     }
 
     fun selectVariant(variant: ColorVariantItem) {
+        AppLogger.log("Variant selected: SKU=${variant.sku}, Color=${variant.color}, Size=${variant.itemSize}")
         _uiState.update { it.copy(selectedVariant = variant) }
     }
 
     fun selectSize(size: String) {
+        AppLogger.log("Size selected: $size")
         val state = _uiState.value
         val currentColor = state.selectedVariant?.color?.lowercase()?.trim()
         val variantForSize = state.variants.firstOrNull {
@@ -229,6 +242,7 @@ class TryOnViewModel(
     }
 
     fun clearSelection() {
+        AppLogger.log("Selection cleared")
         _uiState.update { state ->
             state.copy(
                 selectedItemId = null,
@@ -245,6 +259,7 @@ class TryOnViewModel(
 
     /** Called when the user taps a card in the "More from Brand" strip. */
     fun selectSimilarProduct(product: SimilarProductItem) {
+        AppLogger.log("Similar product selected: SKU=${product.sku}")
         val sku = product.sku?.trim()
         if (sku.isNullOrBlank()) return
         val displayItem = product.toDisplayItem()
@@ -295,6 +310,7 @@ class TryOnViewModel(
     }
 
     fun callStaffAssistance(tryOnLocation: String = "fitting_room_1") {
+        AppLogger.log("Calling staff assistance for: $tryOnLocation")
         if (_uiState.value.isCallingAssistance) return
         _uiState.update { it.copy(isCallingAssistance = true) }
         viewModelScope.launch {
@@ -308,6 +324,7 @@ class TryOnViewModel(
     }
 
     fun checkout(tryOnLocation: String = "TRYON_1", storeId: String = "101") {
+        AppLogger.log("Checkout initiated for: $tryOnLocation at store: $storeId")
         if (_uiState.value.isCheckingOut) return
 
         val currentState = _uiState.value
@@ -347,6 +364,7 @@ class TryOnViewModel(
     }
 
     fun submitRating(epc: String?, sku: String?, rating: Float, feedback: String?) {
+        AppLogger.log("Submitting rating: SKU=$sku, EPC=$epc, Rating=$rating")
         val state = _uiState.value
         if (state.isSubmittingRating) return
         val skuKey = sku?.trim().orEmpty()
@@ -408,6 +426,7 @@ class TryOnViewModel(
     }
 
     fun retryNow() {
+        AppLogger.log("Manual retry/refresh triggered")
         viewModelScope.launch {
             // Clear all cached variant data to fetch fresh
             variantsBySkuCache.clear()
@@ -416,6 +435,7 @@ class TryOnViewModel(
     }
 
     private suspend fun refresh(forceSpinner: Boolean = false) {
+        AppLogger.log("Refreshing try-on items (forceSpinner=$forceSpinner)")
         val hasItems = _uiState.value.items.isNotEmpty()
 
         _uiState.update { state ->
@@ -426,16 +446,24 @@ class TryOnViewModel(
             )
         }
 
-        runCatching {
+        try {
+            coroutineScope {
+                val locationsDeferred = async {
+                    val sessionLocation = sessionManager?.trialRoomName
+                    if (!sessionLocation.isNullOrBlank()) {
+                        listOf(sessionLocation)
+                    } else {
+                        runCatching { repository.getFittingRoomLocations() }.getOrDefault(emptyList())
+                    }
+                }
+                val itemsDeferred = async { 
+                    repository.fetchRecentTryOns()
+                }
 
-            val items = repository.fetchRecentTryOns()
-
-            val locations = repository.getFittingRoomLocations()
-
-            Pair(items, locations)
-        }
-            .onSuccess { (items, locations) ->
-
+                val items = itemsDeferred.await()
+                val locations = locationsDeferred.await()
+                
+                AppLogger.log("Refresh success: ${items.size} items found, ${locations.size} locations found")
 
                 // CRITICAL: Always clear variant cache when API returns empty
                 // This prevents showing old cached data when no new data exists
@@ -453,20 +481,19 @@ class TryOnViewModel(
                     }
                     val selectionChanged = newSelectedItemId != currentSelectedId
                     
-                    // If selection changed to a valid one and we don't have variants, load them
-                    val fetchVariants = newSelectedItemId != null &&
-                                       (newSelectedItemId != currentSelectedId || state.variants.isEmpty()) &&
-                                       !state.isLoadingVariants
-
                     state.copy(
                         items = items,
-                        availableLocations = locations,
-                        selectedLocation =
-                            if (state.selectedLocation == "ALL" ||
-                                locations.contains(state.selectedLocation))
-                                state.selectedLocation
-                            else
-                                "ALL",
+                        availableLocations = if (locations.isNotEmpty()) locations else state.availableLocations,
+                        selectedLocation = run {
+                            val currentLoc = state.selectedLocation
+                            val sessionLoc = sessionManager?.trialRoomName
+                            when {
+                                currentLoc.isNotBlank() && locations.contains(currentLoc) -> currentLoc
+                                !sessionLoc.isNullOrBlank() && locations.contains(sessionLoc) -> sessionLoc
+                                locations.size == 1 -> locations.first()
+                                else -> ""
+                            }
+                        },
                         selectedItemId = newSelectedItemId,
                         pendingSelectedItemId = state.pendingSelectedItemId?.takeIf { pendingId ->
                             items.any { it.id == pendingId }
@@ -495,15 +522,38 @@ class TryOnViewModel(
                     selectItem(finalState.selectedItemId)
                 }
             }
-            .onFailure { throwable ->
-                _uiState.update { state ->
-                    state.copy(
-                        isLoading = false,
-                        isRefreshing = false,
-                        errorMessage = throwable.message ?: "Unable to load try-on items."
-                    )
+        } catch (throwable: Exception) {
+            AppLogger.logError("Refresh failed", throwable)
+            // Even on failure, try to fetch locations if they are missing
+            if (_uiState.value.availableLocations.isEmpty()) {
+                viewModelScope.launch {
+                    val sessionLocation = sessionManager?.trialRoomName
+                    if (!sessionLocation.isNullOrBlank()) {
+                        _uiState.update { it.copy(availableLocations = listOf(sessionLocation)) }
+                    } else {
+                        runCatching { repository.getFittingRoomLocations() }
+                            .onSuccess { locations ->
+                                _uiState.update { it.copy(availableLocations = locations) }
+                            }
+                    }
                 }
             }
+
+            _uiState.update { state ->
+                val friendlyMessage = when (throwable) {
+                    is java.net.ConnectException,
+                    is java.net.SocketTimeoutException,
+                    is java.net.UnknownHostException -> "SERVER IS DOWN. Please contact support team."
+                    else -> throwable.message ?: "Unable to load try-on items."
+                }
+                
+                state.copy(
+                    isLoading = false,
+                    isRefreshing = false,
+                    errorMessage = friendlyMessage
+                )
+            }
+        }
     }
 
     companion object {
@@ -585,7 +635,11 @@ class TryOnViewModel(
         val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                TryOnViewModel(TryOnRepository.create(), context = null) as T
+                TryOnViewModel(
+                    repository = TryOnRepository.create(null),
+                    sessionManager = null,
+                    context = null
+                ) as T
         }
     }
 }
