@@ -54,8 +54,7 @@ class MainActivity : ComponentActivity() {
                     TryOnRoute(
                         viewModel = viewModel,
                         onLogout = {
-                            AppLogger.log("Logout initiated")
-                            sessionManager.logout()
+                            AppLogger.log("Logout successful callback received in MainActivity")
                             isLoggedIn = false
                         }
                     )

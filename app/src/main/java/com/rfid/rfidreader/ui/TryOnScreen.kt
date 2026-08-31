@@ -140,6 +140,12 @@ fun TryOnRoute(
         }
     }
 
+    LaunchedEffect(uiState.logoutSuccess) {
+        if (uiState.logoutSuccess) {
+            onLogout()
+        }
+    }
+
     TryOnScreen(
         uiState = uiState,
         onRetry = viewModel::retryNow,
@@ -148,10 +154,10 @@ fun TryOnRoute(
         onLocationSelected = viewModel::selectLocation,
         onSizeSelected = viewModel::selectSize,
         onBack = viewModel::clearSelection,
-        onChatClicked = viewModel::callStaffAssistance,
+        // onChatClicked = viewModel::callStaffAssistance,
         onSimilarProductSelected = viewModel::selectSimilarProduct,
-        onSubmitRating = viewModel::submitRating,
-        onLogout = onLogout
+        // onSubmitRating = viewModel::submitRating,
+        onLogout = viewModel::logout
     )
 }
 
@@ -178,7 +184,7 @@ fun TryOnScreen(
 
 
     // FAB is only shown on the product preview screen
-    val showChatFab = uiState.selectedItemId != null
+    val showChatFab = false // uiState.selectedItemId != null
 
     Scaffold(
         containerColor = Color.White,
@@ -404,7 +410,7 @@ private fun WelcomeScreen(
                     verticalArrangement = Arrangement.spacedBy(24.dp)
                 ) {
                     Text(
-                        text = "YOU PICKED THESE ITEMS",
+                        text = "ITEMS WITH YOU",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF111827),
@@ -771,12 +777,12 @@ private fun UnifiedProductSection(
             InlineKeyValueField(label = stringResource(id = R.string.label_brand), value = item.brand)
             InlineKeyValueField(label = stringResource(id = R.string.label_product), value = item.product)
 
-            // People tried this info - positioned between Product and Gender
+            /* // People tried this info - positioned between Product and Gender
             PeopleTriedInfo(
                 modifier = Modifier
                     .padding(vertical = 6.dp)
                     .fillMaxWidth()
-            )
+            ) */
 
             // ─────────────────────────────────────────────────────────
             // SECTION 2: Product Attributes
@@ -852,7 +858,7 @@ private fun UnifiedProductSection(
             }
 
             // ─────────────────────────────────────────────────────────
-            // SECTION 4: Popular Choice (Trending Sales)
+            // SECTION 4: Sold Items Info
             // ─────────────────────────────────────────────────────────
             TrendingSalesInfo(
                 modifier = Modifier
@@ -860,18 +866,17 @@ private fun UnifiedProductSection(
                     .fillMaxWidth()
             )
 
-            // ─────────────────────────────────────────────────────────
             // SECTION 5: Rate this Product
             // (sits between Popular Choice and "More from Brand")
             // ─────────────────────────────────────────────────────────
-            RateThisProductSection(
+            /* RateThisProductSection(
                 isSubmitting = isSubmittingRating,
                 hasAlreadyRated = hasAlreadyRated,
                 onSubmit = onSubmitRating,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp)
-            )
+            ) */
         }
     }
 }
@@ -1750,17 +1755,16 @@ private val sampleItems = listOf(
 private fun TrendingSalesInfo(
     modifier: Modifier = Modifier
 ) {
-    // Generate random trending message on each composition
-    val trendingMessage = remember {
-        generateRandomTrendingMessage()
-    }
+    // Generate random count between 15 and 70
+    val count = remember { kotlin.random.Random.nextInt(15, 71) }
+    val soldMessage = "$count sold in the past 15 days"
     
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
     ) {
-        // Fire emoji for trending indicator
+        // Fire emoji for indicator
         Text(
             text = "🔥",
             fontSize = 18.sp,
@@ -1768,7 +1772,7 @@ private fun TrendingSalesInfo(
         )
         
         Text(
-            text = trendingMessage,
+            text = soldMessage,
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium,
             color = Color(0xFF111827),
@@ -1777,7 +1781,7 @@ private fun TrendingSalesInfo(
     }
 }
 
-private fun generateRandomTrendingMessage(): String {
+/* private fun generateRandomTrendingMessage(): String {
     val random = kotlin.random.Random.Default
     
     // Random count between 10 and 60
@@ -1796,7 +1800,7 @@ private fun generateRandomTrendingMessage(): String {
     )
     
     return templates.random()
-}
+} */
 
 // ─────────────────────────────────────────────────────────────────────────────
 // People Tried This Info
@@ -1855,7 +1859,7 @@ private fun generateRandomTriedMessage(): String {
     val soldCount = random.nextInt(10, 61)
 
     // Tried count should always be greater than sold count
-    // Add minimum 10-20 extra to sold count, max 30 extra
+    //Add minimum 10-20 extra to sold count, max 30 extra
     val extraCount = random.nextInt(10, 31)
     val triedCount = soldCount + extraCount
 

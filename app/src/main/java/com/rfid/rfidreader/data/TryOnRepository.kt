@@ -9,6 +9,8 @@ import com.rfid.rfidreader.data.api.ItemRatingRequest
 import com.rfid.rfidreader.data.api.ItemRatingResponse
 import com.rfid.rfidreader.data.api.LoginRequest
 import com.rfid.rfidreader.data.api.LoginResponse
+import com.rfid.rfidreader.data.api.LogoutRequest
+import com.rfid.rfidreader.data.api.LogoutResponse
 import com.rfid.rfidreader.data.api.SimilarProductItem
 import com.rfid.rfidreader.data.api.TryOnApiService
 import com.google.gson.Gson
@@ -43,7 +45,11 @@ class TryOnRepository(
         // Fetch only recent fitting room entries without fallback
         // When API returns empty, we should show empty state, NOT old data
         val storeId = sessionManager?.storeId?.takeIf { it.isNotBlank() } ?: "d2df29a0-fa40-47df-8c9d-0cdad35e040d"
-        val recentItems = service.getRecentTrialRoomItems(storeId).data
+        
+        val token = sessionManager?.authToken ?: ""
+        val authHeader = if (token.isEmpty()) "" else if (token.startsWith("Bearer ")) token else "Bearer $token"
+        
+        val recentItems = service.getRecentTrialRoomItems(authHeader, storeId).data
         
         // Remove fallback to getTodaysTryOnItems() to prevent showing stale data
         // OLD CODE: val source = if (recentItems.isNotEmpty()) recentItems else service.getTodaysTryOnItems().data
@@ -60,7 +66,7 @@ class TryOnRepository(
         return emptyList()
     }
 
-    suspend fun fetchColorVariants(sku: String): List<ColorVariantItem> {
+    /* suspend fun fetchColorVariants(sku: String): List<ColorVariantItem> {
         val response = service.getColorVariants(sku)
         if (!response.isSuccessful) {
             throw IllegalStateException("Color variants request failed: ${response.code()}")
@@ -73,14 +79,14 @@ class TryOnRepository(
             .mapNotNull { element -> runCatching { gson.fromJson(element, ColorVariantItem::class.java) }.getOrNull() }
             .map { it.normalize() }
             .filter { !it.sku.isNullOrBlank() || !it.imageUrl.isNullOrBlank() || !it.color.isNullOrBlank() }
-    }
+    } */
 
-    suspend fun callStaffAssistance(tryOnLocation: String = "fitting_room_1") {
+    /* suspend fun callStaffAssistance(tryOnLocation: String = "fitting_room_1") {
         val response = service.callStaffAssistance(tryOnLocation)
         if (!response.isSuccessful) {
             throw IllegalStateException("Staff assistance call failed: ${response.code()}")
         }
-    }
+    } */
 
     /** Returns similar products for the given brand+gender, or empty list on any error. */
     suspend fun fetchSimilarProducts(brand: String, gender: String): List<SimilarProductItem> {
@@ -92,7 +98,7 @@ class TryOnRepository(
         }
     }
 
-    suspend fun createCheckoutEntry(
+    /* suspend fun createCheckoutEntry(
         epc: String?,
         sku: String?,
         tryOnsLocation: String?,
@@ -114,9 +120,9 @@ class TryOnRepository(
             createdAt = currentTimestamp
         )
         return service.createCheckoutEntry(request)
-    }
+    } */
 
-    suspend fun submitItemRating(
+    /* suspend fun submitItemRating(
         epc: String?,
         sku: String?,
         rating: Float,
@@ -129,7 +135,7 @@ class TryOnRepository(
             feedback = feedback?.takeIf { it.isNotBlank() }
         )
         return service.submitItemRating(request)
-    }
+    } */
 
     suspend fun login(usernameOrEmail: String, password: String): Response<LoginResponse> {
         val request = LoginRequest(
@@ -137,6 +143,11 @@ class TryOnRepository(
             password = password
         )
         return service.login(request)
+    }
+
+    suspend fun logout(accessToken: String): Response<LogoutResponse> {
+        val request = LogoutRequest(accessToken = accessToken)
+        return service.logout(request)
     }
 
     fun getSessionStoreId(): String? = sessionManager?.storeId

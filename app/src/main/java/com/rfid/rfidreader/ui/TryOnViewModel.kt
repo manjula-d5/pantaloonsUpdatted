@@ -38,6 +38,8 @@ data class TryOnUiState(
     val isLoadingVariants: Boolean = false,
     val isCallingAssistance: Boolean = false,
     val isCheckingOut: Boolean = false,
+    val isLoggingOut: Boolean = false,
+    val logoutSuccess: Boolean = false,
     // Item rating
     val isSubmittingRating: Boolean = false,
     val ratedSkus: Set<String> = emptySet(),
@@ -105,7 +107,14 @@ class TryOnViewModel(
     init {
         viewModelScope.launch {
             while (isActive) {
-                refresh()
+                if (sessionManager?.isLoggedIn == true) {
+                    refresh()
+                } else {
+                    // Reset loading state if not logged in
+                    if (_uiState.value.isLoading) {
+                        _uiState.update { it.copy(isLoading = false) }
+                    }
+                }
                 delay(BuildConfig.TRYON_POLL_INTERVAL_MS)
             }
         }
@@ -185,8 +194,9 @@ class TryOnViewModel(
 
         _uiState.update { state ->
             state.copy(
-                pendingSelectedItemId = itemId,
-                isLoadingVariants = true,
+                selectedItemId = itemId,
+                pendingSelectedItemId = null,
+                isLoadingVariants = false,
                 previewOverrideItem = if (isNewItem) null else state.previewOverrideItem,
                 variants = emptyList(),
                 selectedVariant = null,
@@ -194,35 +204,10 @@ class TryOnViewModel(
             )
         }
 
-        viewModelScope.launch {
+        /* viewModelScope.launch {
             runCatching { repository.fetchColorVariants(sku) }
-                .onSuccess { variants ->
-                    variantsBySkuCache[sku] = variants
-                    _uiState.update {
-                        it.copy(
-                            selectedItemId = itemId,
-                            pendingSelectedItemId = null,
-                            variants = variants,
-                            selectedVariant = resolveInitialVariant(
-                                variants = variants,
-                                selectedSku = sku,
-                                preferredItem = selectedItem
-                            ),
-                            isLoadingVariants = false,
-                            errorMessage = null
-                        )
-                    }
-                }
-                .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            pendingSelectedItemId = null,
-                            isLoadingVariants = false,
-                            errorMessage = throwable.message ?: "Unable to load color variants."
-                        )
-                    }
-                }
-        }
+            ...
+        } */
     }
 
     fun selectVariant(variant: ColorVariantItem) {
@@ -266,50 +251,25 @@ class TryOnViewModel(
 
         _uiState.update { state ->
             state.copy(
+                selectedItemId = displayItem.id, // Update selectedItemId to show details
                 previewOverrideItem = displayItem,
                 variants = emptyList(),
                 selectedVariant = null,
-                isLoadingVariants = true,
+                isLoadingVariants = false,
                 errorMessage = null
             )
         }
 
-        // Fetch color variants for the clicked similar product's SKU
+        /* // Fetch color variants for the clicked similar product's SKU
         viewModelScope.launch {
-            runCatching { repository.fetchColorVariants(sku) }
-                .onSuccess { variants ->
-                    variantsBySkuCache[sku] = variants
-                    _uiState.update {
-                        it.copy(
-                            variants = variants,
-                            selectedVariant = resolveInitialVariant(
-                                variants = variants,
-                                selectedSku = sku,
-                                preferredItem = displayItem
-                            ),
-                            isLoadingVariants = false,
-                            errorMessage = null
-                        )
-                    }
-                    context?.let { ctx ->
-                        // Image preloading removed
-                    }
-                }
-                .onFailure { throwable ->
-                    _uiState.update {
-                        it.copy(
-                            isLoadingVariants = false,
-                            errorMessage = throwable.message ?: "Unable to load color variants."
-                        )
-                    }
-                }
-        }
+            ...
+        } */
 
         // Reload similar products for the new brand
         loadSimilarProductsForBrandAndGender(displayItem.brand, displayItem.gender)
     }
 
-    fun callStaffAssistance(tryOnLocation: String = "fitting_room_1") {
+    /* fun callStaffAssistance(tryOnLocation: String = "fitting_room_1") {
         AppLogger.log("Calling staff assistance for: $tryOnLocation")
         if (_uiState.value.isCallingAssistance) return
         _uiState.update { it.copy(isCallingAssistance = true) }
@@ -321,9 +281,9 @@ class TryOnViewModel(
                 }
             _uiState.update { it.copy(isCallingAssistance = false) }
         }
-    }
+    } */
 
-    fun checkout(tryOnLocation: String = "TRYON_1", storeId: String = "101") {
+    /* fun checkout(tryOnLocation: String = "TRYON_1", storeId: String = "101") {
         AppLogger.log("Checkout initiated for: $tryOnLocation at store: $storeId")
         if (_uiState.value.isCheckingOut) return
 
@@ -361,9 +321,40 @@ class TryOnViewModel(
                 }
             _uiState.update { it.copy(isCheckingOut = false) }
         }
+    } */
+
+    fun logout() {
+        AppLogger.log("Logout initiated")
+        if (_uiState.value.isLoggingOut) return
+        
+        _uiState.update { it.copy(logoutSuccess = false) }
+        val token = sessionManager?.authToken
+        if (token.isNullOrBlank()) {
+            AppLogger.log("Logout: No auth token found, clearing session immediately")
+            sessionManager?.logout()
+            _uiState.update { it.copy(logoutSuccess = true) }
+            return
+        }
+
+        _uiState.update { it.copy(isLoggingOut = true) }
+        viewModelScope.launch {
+            try {
+                val response = repository.logout(token)
+                if (response.isSuccessful) {
+                    AppLogger.log("Logout API call successful")
+                } else {
+                    AppLogger.log("Logout API call failed with code: ${response.code()}")
+                }
+            } catch (e: Exception) {
+                AppLogger.logError("Logout exception", e)
+            } finally {
+                sessionManager?.logout()
+                _uiState.update { it.copy(isLoggingOut = false, logoutSuccess = true) }
+            }
+        }
     }
 
-    fun submitRating(epc: String?, sku: String?, rating: Float, feedback: String?) {
+    /* fun submitRating(epc: String?, sku: String?, rating: Float, feedback: String?) {
         AppLogger.log("Submitting rating: SKU=$sku, EPC=$epc, Rating=$rating")
         val state = _uiState.value
         if (state.isSubmittingRating) return
@@ -410,7 +401,7 @@ class TryOnViewModel(
                     _ratingEvents.send("Could not submit rating. Please try again.")
                 }
         }
-    }
+    } */
 
     private fun loadSimilarProductsForBrandAndGender(brand: String, gender: String) {
         if (brand.isBlank() || brand == "-" || gender.isBlank() || gender == "-") return
@@ -427,6 +418,7 @@ class TryOnViewModel(
 
     fun retryNow() {
         AppLogger.log("Manual retry/refresh triggered")
+        _uiState.update { it.copy(logoutSuccess = false) }
         viewModelScope.launch {
             // Clear all cached variant data to fetch fresh
             variantsBySkuCache.clear()
@@ -435,6 +427,11 @@ class TryOnViewModel(
     }
 
     private suspend fun refresh(forceSpinner: Boolean = false) {
+        if (sessionManager?.isLoggedIn != true) {
+            AppLogger.log("Refresh skipped: User not logged in")
+            return
+        }
+        
         AppLogger.log("Refreshing try-on items (forceSpinner=$forceSpinner)")
         val hasItems = _uiState.value.items.isNotEmpty()
 
@@ -632,14 +629,17 @@ class TryOnViewModel(
             )
         }
 
-        val Factory: ViewModelProvider.Factory = object : ViewModelProvider.Factory {
+        class Factory(private val context: Context) : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                TryOnViewModel(
-                    repository = TryOnRepository.create(null),
-                    sessionManager = null,
-                    context = null
+            override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                val sessionManager = SessionManager(context)
+                val repository = TryOnRepository.create(context)
+                return TryOnViewModel(
+                    repository = repository,
+                    sessionManager = sessionManager,
+                    context = context
                 ) as T
+            }
         }
     }
 }

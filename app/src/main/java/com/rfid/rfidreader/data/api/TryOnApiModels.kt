@@ -136,11 +136,21 @@ data class LoginRequest(
     val password: String
 )
 
+data class LogoutRequest(
+    val accessToken: String
+)
+
 data class LoginResponse(
     val status: Int,
     val message: String,
     val data: LoginData?,
     val timestamp: String?
+)
+
+data class LogoutResponse(
+    val status: Int,
+    val message: String,
+    val success: Boolean? = null
 )
 
 data class LoginData(
