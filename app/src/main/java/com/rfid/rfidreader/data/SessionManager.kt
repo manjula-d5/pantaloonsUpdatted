@@ -11,6 +11,7 @@ class SessionManager(context: Context) {
         private const val PREF_NAME = "rfid_reader_session"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_AUTH_TOKEN = "auth_token"
+        private const val KEY_REFRESH_TOKEN = "refresh_token"
         private const val KEY_STORE_ID = "store_id"
         private const val KEY_TRIAL_ROOM_ID = "trial_room_id"
         private const val KEY_TRIAL_ROOM_NAME = "trial_room_name"
@@ -42,6 +43,13 @@ class SessionManager(context: Context) {
         set(value) {
             AppLogger.log("SessionManager: Updating authToken (length: ${value?.length ?: 0})")
             prefs.edit().putString(KEY_AUTH_TOKEN, value).apply()
+        }
+
+    var refreshToken: String?
+        get() = prefs.getString(KEY_REFRESH_TOKEN, null)
+        set(value) {
+            AppLogger.log("SessionManager: Updating refreshToken (length: ${value?.length ?: 0})")
+            prefs.edit().putString(KEY_REFRESH_TOKEN, value).apply()
         }
 
     var storeId: String?

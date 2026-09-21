@@ -3,6 +3,7 @@ package com.rfid.rfidreader.ui
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -83,6 +85,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -279,85 +283,96 @@ fun TryOnScreen(
                                 )
                             }
                         } else {
-                            // Product preview screen - Single unified page layout
+                            // Product preview screen - Single unified page layout inside Card Frame
                             val primaryItem = uiState.featuredItem ?: uiState.filteredItems.first()
                             val previewImageUrl = uiState.selectedVariant?.imageUrl ?: primaryItem.imageUrl
 
-                            Column(
+                            Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .background(Color.White),
-                                verticalArrangement = Arrangement.Top
+                                    .fillMaxWidth(),
+                                shape = RoundedCornerShape(32.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(4.dp, Color(0xFF1BB8B4)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
                             ) {
-                                // Back button
-                                if (totalItems > 1) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        IconButton(
-                                            onClick = onBack,
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .background(Color.White)
+                                        .padding(16.dp),
+                                    verticalArrangement = Arrangement.Top
+                                ) {
+                                    // Back button
+                                    if (totalItems > 1) {
+                                        Row(
                                             modifier = Modifier
-                                                .background(Color(0xFFF3F4F6), CircleShape)
-                                                .size(48.dp)
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                contentDescription = "Back",
-                                                tint = Color(0xFF1BB8B4)
+                                            IconButton(
+                                                onClick = onBack,
+                                                modifier = Modifier
+                                                    .background(Color(0xFFF3F4F6), CircleShape)
+                                                    .size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                    contentDescription = "Back",
+                                                    tint = Color(0xFF1BB8B4)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                text = "Back to Selection",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = Color(0xFF4B5563),
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(
-                                            text = "Back to Selection",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = Color(0xFF4B5563),
-                                            fontWeight = FontWeight.Medium
-                                        )
                                     }
-                                }
 
-                                // Main product section: Images LEFT + Details RIGHT
-                                UnifiedProductSection(
-                                    imageUrl = previewImageUrl,
-                                    item = primaryItem,
-                                    variants = uiState.variants,
-                                    selectedVariant = uiState.selectedVariant,
-                                    isLoadingVariants = uiState.isLoadingVariants,
-                                    onVariantSelected = onVariantSelected,
-                                    onSizeSelected = onSizeSelected,
-                                    isSubmittingRating = uiState.isSubmittingRating,
-                                    hasAlreadyRated = run {
-                                        val sku = (uiState.selectedVariant?.sku ?: primaryItem.sku).trim()
-                                        sku.isNotEmpty() && uiState.ratedSkus.contains(sku)
-                                    },
-                                    onSubmitRating = { rating, feedback ->
-                                        onSubmitRating(
-                                            primaryItem.tagName,
-                                            uiState.selectedVariant?.sku ?: primaryItem.sku,
-                                            rating,
-                                            feedback
-                                        )
-                                    }
-                                )
-
-                                // "More from Brand" section - naturally continues below
-                                if (uiState.isLoadingSimilarProducts || uiState.similarProducts.isNotEmpty()) {
-                                    SimilarProductsSection(
-                                        brand = primaryItem.brand,
-                                        products = uiState.similarProducts,
-                                        isLoading = uiState.isLoadingSimilarProducts,
-                                        onProductClick = onSimilarProductSelected,
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+                                    // Main product section: Images LEFT + Details RIGHT
+                                    UnifiedProductSection(
+                                        imageUrl = previewImageUrl,
+                                        item = primaryItem,
+                                        variants = uiState.variants,
+                                        selectedVariant = uiState.selectedVariant,
+                                        isLoadingVariants = uiState.isLoadingVariants,
+                                        onVariantSelected = onVariantSelected,
+                                        onSizeSelected = onSizeSelected,
+                                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                                        isSubmittingRating = uiState.isSubmittingRating,
+                                        hasAlreadyRated = run {
+                                            val sku = (uiState.selectedVariant?.sku ?: primaryItem.sku).trim()
+                                            sku.isNotEmpty() && uiState.ratedSkus.contains(sku)
+                                        },
+                                        onSubmitRating = { rating, feedback ->
+                                            onSubmitRating(
+                                                primaryItem.tagName,
+                                                uiState.selectedVariant?.sku ?: primaryItem.sku,
+                                                rating,
+                                                feedback
+                                            )
+                                        }
                                     )
-                                }
 
-                                // Bottom spacing to ensure content isn't hidden behind chat button
-                                Spacer(modifier = Modifier.height(80.dp))
+                                    /* // "More from Brand" section - naturally continues below
+                                    if (uiState.isLoadingSimilarProducts || uiState.similarProducts.isNotEmpty()) {
+                                        SimilarProductsSection(
+                                            brand = primaryItem.brand,
+                                            products = uiState.similarProducts,
+                                            isLoading = uiState.isLoadingSimilarProducts,
+                                            onProductClick = onSimilarProductSelected,
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
+                                        )
+                                    } */
+
+                                    // Bottom spacing
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
                             }
                         }
                     }
@@ -444,8 +459,13 @@ private fun WelcomeScreen(
 
 @Composable
 private fun WelcomeProductItem(item: TryOnDisplayItem, onClick: () -> Unit) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val cardWidth = (screenWidthDp * 0.28f).dp.coerceIn(160.dp, 220.dp)
+    val imageSize = (cardWidth - 40.dp).coerceAtLeast(100.dp)
+
     Card(
-        modifier = Modifier.width(200.dp).clickable(onClick = onClick),
+        modifier = Modifier.width(cardWidth).clickable(onClick = onClick),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = Color(0xFFF9FAFB)),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -453,13 +473,13 @@ private fun WelcomeProductItem(item: TryOnDisplayItem, onClick: () -> Unit) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(20.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             ProductImage(
                 item = item,
-                modifier = Modifier.size(150.dp).clip(RoundedCornerShape(20.dp))
+                modifier = Modifier.size(imageSize).clip(RoundedCornerShape(20.dp))
             )
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = item.brand,
                 style = MaterialTheme.typography.titleMedium,
@@ -490,6 +510,9 @@ private fun PantaloonsTopBanner(
     onLocationSelected: (String) -> Unit,
     onLogout: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+
     var expanded by remember { mutableStateOf(false) }
     var moreMenuExpanded by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -520,15 +543,21 @@ private fun PantaloonsTopBanner(
         modifier = Modifier
             .fillMaxWidth()
             .background(Color(0xFF1BB8B4))
-            .padding(horizontal = 24.dp, vertical = 14.dp),
+            .padding(
+                horizontal = if (screenWidthDp < 400) 12.dp else 24.dp,
+                vertical = 12.dp
+            ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = "WELCOME TO PANTALOONS",
-            style = MaterialTheme.typography.titleMedium,
+            style = if (screenWidthDp < 400) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = Color.White
+            color = Color.White,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false)
         )
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -681,18 +710,27 @@ private fun ErrorBanner(message: String, onRetry: () -> Unit) {
 
 @Composable
 private fun EmptyState(onRetry: () -> Unit) {
-    Box(
+    Card(
         modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(4.dp, Color(0xFF1BB8B4)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 10.dp)
     ) {
-        Text(
-            text = "WELCOME TO PANTALOONS",
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1BB8B4),
-            letterSpacing = 0.5.sp,
-            textAlign = TextAlign.Center
-        )
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "WELCOME TO PANTALOONS",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1BB8B4),
+                letterSpacing = 0.5.sp,
+                textAlign = TextAlign.Center
+            )
+
+        }
     }
 }
 
@@ -714,6 +752,18 @@ private fun UnifiedProductSection(
     hasAlreadyRated: Boolean = false,
     onSubmitRating: (rating: Float, feedback: String) -> Unit = { _, _ -> }
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isWideScreen = screenWidthDp >= 600 || isLandscape
+
+    val imageHeight = if (isLandscape) {
+        (screenHeightDp * 0.65f).dp.coerceIn(280.dp, 520.dp)
+    } else {
+        (screenHeightDp * 0.38f).dp.coerceIn(200.dp, 400.dp)
+    }
+
     val previewColor = selectedVariant?.color ?: item.color
     val previewSize = selectedVariant?.itemSize ?: item.size
 
@@ -740,33 +790,10 @@ private fun UnifiedProductSection(
             .toSet()
     }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        // Image 1 - Left
-        FeaturedFixedImage(
-            imageUrl = imageUrl,
-            modifier = Modifier
-                .weight(0.25f)
-                .height(400.dp)
-        )
-
-        // Image 2 - Center
-        ZoomableProductImage(
-            imageUrl = imageUrl,
-            modifier = Modifier
-                .weight(0.25f)
-                .height(400.dp)
-        )
-
-        // Product Details - Right (50% width)
+    val detailsContent = @Composable {
         Column(
             modifier = Modifier
-                .weight(0.5f)
+                .fillMaxWidth()
                 .wrapContentHeight(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalAlignment = Alignment.Start
@@ -776,13 +803,6 @@ private fun UnifiedProductSection(
             // ─────────────────────────────────────────────────────────
             InlineKeyValueField(label = stringResource(id = R.string.label_brand), value = item.brand)
             InlineKeyValueField(label = stringResource(id = R.string.label_product), value = item.product)
-
-            /* // People tried this info - positioned between Product and Gender
-            PeopleTriedInfo(
-                modifier = Modifier
-                    .padding(vertical = 6.dp)
-                    .fillMaxWidth()
-            ) */
 
             // ─────────────────────────────────────────────────────────
             // SECTION 2: Product Attributes
@@ -794,14 +814,12 @@ private fun UnifiedProductSection(
             // ─────────────────────────────────────────────────────────
             // SECTION 3: Interactive Controls
             // ─────────────────────────────────────────────────────────
-            // Color selector
             if (isLoadingVariants) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
                     color = Color(0xFF1BB8B4)
                 )
             } else if (uniqueColorVariants.isNotEmpty()) {
-                // SELECT COLOR section
                 Text(
                     text = "SELECT COLOR",
                     fontSize = 11.sp,
@@ -828,7 +846,6 @@ private fun UnifiedProductSection(
                     }
                 }
 
-                // SELECT SIZE section
                 if (allSizes.isNotEmpty()) {
                     Text(
                         text = "SELECT SIZE",
@@ -865,18 +882,74 @@ private fun UnifiedProductSection(
                     .padding(top = 16.dp)
                     .fillMaxWidth()
             )
+        }
+    }
 
-            // SECTION 5: Rate this Product
-            // (sits between Popular Choice and "More from Brand")
-            // ─────────────────────────────────────────────────────────
-            /* RateThisProductSection(
-                isSubmitting = isSubmittingRating,
-                hasAlreadyRated = hasAlreadyRated,
-                onSubmit = onSubmitRating,
+    if (isWideScreen) {
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Image 1 - Left
+            FeaturedFixedImage(
+                imageUrl = imageUrl,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp)
-            ) */
+                    .weight(0.26f)
+                    .fillMaxHeight()
+            )
+
+            // Image 2 - Center
+            ZoomableProductImage(
+                imageUrl = imageUrl,
+                modifier = Modifier
+                    .weight(0.26f)
+                    .fillMaxHeight()
+            )
+
+            // Product Details - Right (48% width) - Vertically centered in middle of page
+            Box(
+                modifier = Modifier
+                    .weight(0.48f)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                detailsContent()
+            }
+        }
+    } else {
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Images side-by-side on top
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FeaturedFixedImage(
+                    imageUrl = imageUrl,
+                    modifier = Modifier
+                        .weight(0.5f)
+                        .height(imageHeight)
+                )
+
+                ZoomableProductImage(
+                    imageUrl = imageUrl,
+                    modifier = Modifier
+                        .weight(0.5f)
+                        .height(imageHeight)
+                )
+            }
+
+            // Details taking full width below
+            detailsContent()
         }
     }
 }
@@ -1566,14 +1639,15 @@ private fun PlaceholderContent(item: TryOnDisplayItem, modifier: Modifier = Modi
 @Composable
 private fun InlineKeyValueField(label: String, value: String) {
     val text = buildAnnotatedString {
-        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("$label: ") }
-        withStyle(SpanStyle(fontWeight = FontWeight.Normal)) { append(value) }
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Color(0xFF374151))) { append("$label: ") }
+        withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold, color = Color(0xFF111827))) { append(value) }
     }
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
+        fontSize = 24.sp,
+        lineHeight = 32.sp,
         color = Color(0xFF111827),
-        maxLines = 2,
+        maxLines = 3,
         overflow = TextOverflow.Ellipsis
     )
 }
@@ -1766,17 +1840,18 @@ private fun TrendingSalesInfo(
     ) {
         // Fire emoji for indicator
         Text(
-            text = "🔥",
-            fontSize = 18.sp,
+           // text = "🔥",
+            text = "🛍️",
+            fontSize = 24.sp,
             modifier = Modifier.padding(end = 8.dp)
         )
         
         Text(
             text = soldMessage,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = Color(0xFF111827),
-            lineHeight = 18.sp
+            lineHeight = 26.sp
         )
     }
 }

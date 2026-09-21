@@ -16,6 +16,16 @@ interface TryOnApiService {
         @Body request: LoginRequest
     ): Response<LoginResponse>
 
+    @POST("api/auth/refresh-token")
+    suspend fun refreshToken(
+        @Body request: RefreshTokenRequest
+    ): Response<LoginResponse>
+
+    @POST("api/auth/refresh")
+    suspend fun refresh(
+        @Body request: RefreshTokenRequest
+    ): Response<LoginResponse>
+
     @GET("api/try-ons/recent-trial-room-items")
     suspend fun getRecentTrialRoomItems(
         @Header("Authorization") authHeader: String,
@@ -31,11 +41,11 @@ interface TryOnApiService {
     // @GET("api/tryons/color-variants")
     // suspend fun getColorVariants(@Query("sku") sku: String): Response<ResponseBody>
 
-    @GET("api/products/similar-products")
-    suspend fun getSimilarProducts(
-        @Query("brand") brand: String,
-        @Query("gender") gender: String
-    ): SimilarProductsResponse
+    // @GET("api/products/similar-products")
+    // suspend fun getSimilarProducts(
+    //     @Query("brand") brand: String,
+    //     @Query("gender") gender: String
+    // ): SimilarProductsResponse
 
     // @GET("api/tryons/todays-try-on-items")
     // suspend fun getTodaysTryOnItems(): TryOnApiResponse

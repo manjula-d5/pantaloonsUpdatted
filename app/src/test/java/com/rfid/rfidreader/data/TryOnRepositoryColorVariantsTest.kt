@@ -89,6 +89,14 @@ class TryOnRepositoryColorVariantsTest {
             return Response.success(com.rfid.rfidreader.data.api.LoginResponse(200, "ok", null, null))
         }
 
+        override suspend fun refreshToken(request: com.rfid.rfidreader.data.api.RefreshTokenRequest): Response<com.rfid.rfidreader.data.api.LoginResponse> {
+            return Response.success(com.rfid.rfidreader.data.api.LoginResponse(200, "ok", null, null))
+        }
+
+        override suspend fun refresh(request: com.rfid.rfidreader.data.api.RefreshTokenRequest): Response<com.rfid.rfidreader.data.api.LoginResponse> {
+            return Response.success(com.rfid.rfidreader.data.api.LoginResponse(200, "ok", null, null))
+        }
+
         override suspend fun getRecentTrialRoomItems(authHeader: String, storeId: String): TryOnApiResponse {
             return TryOnApiResponse(data = emptyList())
         }
@@ -111,9 +119,9 @@ class TryOnRepositoryColorVariantsTest {
             return Response.success("{}".toResponseBody("application/json".toMediaType()))
         } */
 
-        override suspend fun getSimilarProducts(brand: String, gender: String): com.rfid.rfidreader.data.api.SimilarProductsResponse {
+        /* override suspend fun getSimilarProducts(brand: String, gender: String): com.rfid.rfidreader.data.api.SimilarProductsResponse {
             return com.rfid.rfidreader.data.api.SimilarProductsResponse(success = true, data = emptyList())
-        }
+        } */
 
         /* override suspend fun createCheckoutEntry(request: com.rfid.rfidreader.data.api.CheckoutRequest): com.rfid.rfidreader.data.api.CheckoutResponse {
             return com.rfid.rfidreader.data.api.CheckoutResponse(success = true, message = "ok")

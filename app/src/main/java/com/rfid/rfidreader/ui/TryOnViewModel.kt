@@ -168,9 +168,9 @@ class TryOnViewModel(
 
         // Fetch similar products whenever we switch to a genuinely new item
         val isNewItem = currentState.selectedItemId != itemId
-        if (isNewItem || currentState.similarProducts.isEmpty()) {
+        /* if (isNewItem || currentState.similarProducts.isEmpty()) {
             loadSimilarProductsForBrandAndGender(selectedItem.brand, selectedItem.gender)
-        }
+        } */
 
         val cachedVariants = variantsBySkuCache[sku]
         if (cachedVariants != null) {
@@ -404,7 +404,8 @@ class TryOnViewModel(
     } */
 
     private fun loadSimilarProductsForBrandAndGender(brand: String, gender: String) {
-        if (brand.isBlank() || brand == "-" || gender.isBlank() || gender == "-") return
+        // Disabled - endpoint commented out
+        /* if (brand.isBlank() || brand == "-" || gender.isBlank() || gender == "-") return
         _uiState.update { it.copy(isLoadingSimilarProducts = true, similarProducts = emptyList()) }
         viewModelScope.launch {
             val products: List<SimilarProductItem> = try {
@@ -413,7 +414,7 @@ class TryOnViewModel(
                 emptyList()
             }
             _uiState.update { it.copy(similarProducts = products, isLoadingSimilarProducts = false) }
-        }
+        } */
     }
 
     fun retryNow() {
@@ -438,7 +439,7 @@ class TryOnViewModel(
         _uiState.update { state ->
             state.copy(
                 isLoading = state.isLoading && !hasItems,
-                isRefreshing = hasItems || forceSpinner,
+                isRefreshing = forceSpinner,
                 errorMessage = null
             )
         }
@@ -521,6 +522,30 @@ class TryOnViewModel(
             }
         } catch (throwable: Exception) {
             AppLogger.logError("Refresh failed", throwable)
+
+            // Handle 401 Unauthorized by refreshing token or clearing session
+            if (throwable is retrofit2.HttpException && throwable.code() == 401) {
+                AppLogger.log("HTTP 401 Unauthorized encountered. Attempting token refresh...")
+                val refreshed = repository.refreshToken()
+                if (refreshed) {
+                    AppLogger.log("Token refresh succeeded. Retrying refresh...")
+                    refresh(forceSpinner)
+                    return
+                } else {
+                    AppLogger.log("Token refresh failed or unauthorized. Clearing session and triggering logout.")
+                    sessionManager?.logout()
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            isRefreshing = false,
+                            logoutSuccess = true,
+                            errorMessage = "Session expired. Please log in again."
+                        )
+                    }
+                    return
+                }
+            }
+
             // Even on failure, try to fetch locations if they are missing
             if (_uiState.value.availableLocations.isEmpty()) {
                 viewModelScope.launch {

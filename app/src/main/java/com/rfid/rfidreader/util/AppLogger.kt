@@ -25,7 +25,7 @@ object AppLogger {
         val formattedMessage = "[$timestamp] $message"
         
         // Print to Logcat
-        Log.d(TAG, message)
+        runCatching { Log.d(TAG, message) }
 
         // Write to File - synchronized to prevent concurrent write issues
         synchronized(this) {
@@ -36,14 +36,14 @@ object AppLogger {
                     writer.close()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to write to log file: ${e.message}")
+                runCatching { Log.e(TAG, "Failed to write to log file: ${e.message}") }
             }
         }
     }
 
     fun logError(message: String, throwable: Throwable? = null) {
         val errorMsg = if (throwable != null) {
-            "$message | Error: ${throwable.message}\n${Log.getStackTraceString(throwable)}"
+            "$message | Error: ${throwable.message}\n${throwable.stackTraceToString()}"
         } else {
             message
         }

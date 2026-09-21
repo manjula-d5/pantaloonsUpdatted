@@ -30,11 +30,13 @@ class LoginViewModel(
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     fun login(usernameOrEmail: String, password: String) {
-        AppLogger.log("Login attempt for user: $usernameOrEmail")
+        val cleanUsername = usernameOrEmail.trim()
+        val cleanPassword = password.trim()
+        AppLogger.log("Login attempt for user: $cleanUsername")
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
         viewModelScope.launch {
             try {
-                val response = repository.login(usernameOrEmail, password)
+                val response = repository.login(cleanUsername, cleanPassword)
                 
                 if (response.isSuccessful) {
                     val body = response.body()
@@ -42,6 +44,7 @@ class LoginViewModel(
                         AppLogger.log("Login successful for: $usernameOrEmail")
                         sessionManager?.let {
                             it.authToken = body.data.accessToken
+                            it.refreshToken = body.data.refreshToken
                             it.storeId = body.data.user?.storeId
                             it.trialRoomId = body.data.user?.trialRoomId ?: -1
                             it.trialRoomName = body.data.user?.trialRoomName

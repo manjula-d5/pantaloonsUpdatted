@@ -3,6 +3,8 @@ package com.rfid.rfidreader.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -79,6 +81,11 @@ private fun LoginContent(
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
+    val cardVerticalPadding = if (isLandscape) 32.dp else 40.dp
+    val cardHorizontalPadding = if (isLandscape) 40.dp else 36.dp
+    val itemSpacing = if (isLandscape) 18.dp else 22.dp
+    val logoHeight = if (isLandscape) 48.dp else 60.dp
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -105,59 +112,52 @@ private fun LoginContent(
                 .background(Color.White.copy(alpha = 0.08f), CircleShape)
         )
 
-        // Login card - responsive to orientation
+        // Login card - responsive and properly proportioned across all screen resolutions
         Card(
             modifier = Modifier
-                .fillMaxWidth(if (isLandscape) 0.50f else 0.88f)
-                .widthIn(max = 700.dp)
-                .wrapContentHeight()
-                .padding(horizontal = if (isLandscape) 32.dp else 24.dp),
-            shape = RoundedCornerShape(32.dp),
+                .fillMaxWidth(if (isLandscape) 0.48f else 0.86f)
+                .widthIn(min = 340.dp, max = 560.dp)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
             elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(
-                        horizontal = if (isLandscape) 48.dp else 40.dp,
-                        vertical = if (isLandscape) 36.dp else 48.dp
-                    ),
+                    .padding(horizontal = cardHorizontalPadding, vertical = cardVerticalPadding),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(if (isLandscape) 20.dp else 28.dp)
+                verticalArrangement = Arrangement.spacedBy(itemSpacing)
             ) {
                 // Pantaloons Logo Image
                 Image(
                     painter = painterResource(id = R.drawable.pantaloons1),
                     contentDescription = "Pantaloons Logo",
                     modifier = Modifier
-                        .fillMaxWidth(if (isLandscape) 0.5f else 0.7f)
-                        .height(if (isLandscape) 50.dp else 70.dp),
+                        .fillMaxWidth(0.60f)
+                        .height(logoHeight),
                     contentScale = ContentScale.Fit
                 )
 
-                if (!isLandscape) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+                // Welcome header text
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Welcome",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF111827),
+                        textAlign = TextAlign.Center
+                    )
 
-                // Welcome text
-                Text(
-                    text = "Welcome",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF111827),
-                    textAlign = TextAlign.Center
-                )
-
-                Text(
-                    text = "Sign in to continue",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF6B7280),
-                    textAlign = TextAlign.Center
-                )
-
-                if (!isLandscape) {
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Sign in to continue",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF6B7280),
+                        textAlign = TextAlign.Center
+                    )
                 }
 
                 // Username field
@@ -239,8 +239,10 @@ private fun LoginContent(
                     keyboardActions = KeyboardActions(
                         onDone = {
                             focusManager.clearFocus()
-                            if (username.isNotBlank() && password.isNotBlank()) {
-                                onLogin(username, password)
+                            val cleanUser = username.trim()
+                            val cleanPass = password.trim()
+                            if (cleanUser.isNotBlank() && cleanPass.isNotBlank()) {
+                                onLogin(cleanUser, cleanPass)
                             }
                         }
                     )
@@ -257,23 +259,23 @@ private fun LoginContent(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
                 // Login button
                 Button(
                     onClick = {
                         focusManager.clearFocus()
-                        if (username.isBlank()) {
+                        val cleanUser = username.trim()
+                        val cleanPass = password.trim()
+                        if (cleanUser.isBlank()) {
                             localErrorMessage = "Please enter username"
-                        } else if (password.isBlank()) {
+                        } else if (cleanPass.isBlank()) {
                             localErrorMessage = "Please enter password"
                         } else {
-                            onLogin(username, password)
+                            onLogin(cleanUser, cleanPass)
                         }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
+                        .height(52.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF1BB8B4),
                         disabledContainerColor = Color(0xFF9CA3AF)
@@ -283,14 +285,14 @@ private fun LoginContent(
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(22.dp),
                             color = Color.White,
                             strokeWidth = 2.5.dp
                         )
                     } else {
                         Text(
                             text = "Sign In",
-                            fontSize = 18.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 0.5.sp
                         )
@@ -305,7 +307,6 @@ private fun LoginContent(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
                         .alpha(0.7f)
                 )
             }

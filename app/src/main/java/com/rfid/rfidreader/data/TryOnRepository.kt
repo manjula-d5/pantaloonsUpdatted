@@ -46,17 +46,55 @@ class TryOnRepository(
         // When API returns empty, we should show empty state, NOT old data
         val storeId = sessionManager?.storeId?.takeIf { it.isNotBlank() } ?: "d2df29a0-fa40-47df-8c9d-0cdad35e040d"
         
-        val token = sessionManager?.authToken ?: ""
-        val authHeader = if (token.isEmpty()) "" else if (token.startsWith("Bearer ")) token else "Bearer $token"
+        val token = sessionManager?.authToken?.trim().orEmpty()
+        val authHeader = when {
+            token.isEmpty() -> ""
+            token.startsWith("Bearer ", ignoreCase = true) -> token
+            else -> "Bearer $token"
+        }
         
         val recentItems = service.getRecentTrialRoomItems(authHeader, storeId).data
-        
-        // Remove fallback to getTodaysTryOnItems() to prevent showing stale data
-        // OLD CODE: val source = if (recentItems.isNotEmpty()) recentItems else service.getTodaysTryOnItems().data
         
         return recentItems
             .map(TryOnItemMapper::map)
             .sortedByDescending { it.eventTimestampMillis ?: Long.MIN_VALUE }
+    }
+
+    suspend fun refreshToken(): Boolean {
+        val currentRefreshToken = sessionManager?.refreshToken
+        if (currentRefreshToken.isNullOrBlank()) {
+            AppLogger.log("Token refresh skipped: No refresh token stored")
+            return false
+        }
+
+        return try {
+            val request = com.rfid.rfidreader.data.api.RefreshTokenRequest(refreshToken = currentRefreshToken)
+            AppLogger.log("Attempting token refresh...")
+            
+            var response = try { service.refreshToken(request) } catch (e: Exception) { null }
+            if (response == null || !response.isSuccessful || response.body()?.data?.accessToken == null) {
+                response = try { service.refresh(request) } catch (e: Exception) { null }
+            }
+
+            if (response != null && response.isSuccessful) {
+                val body = response.body()
+                if (body?.status == 200 && body.data?.accessToken != null) {
+                    AppLogger.log("Token refreshed successfully")
+                    sessionManager?.let {
+                        it.authToken = body.data.accessToken
+                        if (!body.data.refreshToken.isNullOrBlank()) {
+                            it.refreshToken = body.data.refreshToken
+                        }
+                    }
+                    return true
+                }
+            }
+            AppLogger.log("Token refresh failed with response: ${response?.code()}")
+            false
+        } catch (e: Exception) {
+            AppLogger.logError("Token refresh failed with exception", e)
+            false
+        }
     }
 
     fun getFittingRoomLocations(): List<String> {
@@ -88,7 +126,7 @@ class TryOnRepository(
         }
     } */
 
-    /** Returns similar products for the given brand+gender, or empty list on any error. */
+    /* /** Returns similar products for the given brand+gender, or empty list on any error. */
     suspend fun fetchSimilarProducts(brand: String, gender: String): List<SimilarProductItem> {
         if (brand.isBlank() || brand == "-" || gender.isBlank() || gender == "-") return emptyList()
         return try {
@@ -96,7 +134,7 @@ class TryOnRepository(
         } catch (e: Exception) {
             emptyList()
         }
-    }
+    } */
 
     /* suspend fun createCheckoutEntry(
         epc: String?,
@@ -139,14 +177,14 @@ class TryOnRepository(
 
     suspend fun login(usernameOrEmail: String, password: String): Response<LoginResponse> {
         val request = LoginRequest(
-            usernameOrEmail = usernameOrEmail,
-            password = password
+            usernameOrEmail = usernameOrEmail.trim(),
+            password = password.trim()
         )
         return service.login(request)
     }
 
     suspend fun logout(accessToken: String): Response<LogoutResponse> {
-        val request = LogoutRequest(accessToken = accessToken)
+        val request = LogoutRequest(accessToken = accessToken.trim())
         return service.logout(request)
     }
 
@@ -179,12 +217,15 @@ class TryOnRepository(
             val sessionManager = context?.let { SessionManager(it) }
             
             val authInterceptor = Interceptor { chain ->
-                val requestBuilder = chain.request().newBuilder()
-                val token = sessionManager?.authToken ?: BuildConfig.TRYON_AUTH_TOKEN.trim()
+                val originalRequest = chain.request()
+                val requestBuilder = originalRequest.newBuilder()
+                val token = sessionManager?.authToken?.trim() ?: BuildConfig.TRYON_AUTH_TOKEN.trim()
                 
                 if (token.isNotEmpty()) {
-                    val headerValue = if (token.contains(' ')) token else "Bearer $token"
+                    val headerValue = if (token.startsWith("Bearer ", ignoreCase = true)) token else "Bearer $token"
                     requestBuilder.header("Authorization", headerValue)
+                } else {
+                    requestBuilder.removeHeader("Authorization")
                 }
                 chain.proceed(requestBuilder.build())
             }
