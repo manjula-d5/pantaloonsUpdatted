@@ -1831,20 +1831,20 @@ private fun TrendingSalesInfo(
 ) {
     // Generate random count between 15 and 70
     val count = remember { kotlin.random.Random.nextInt(15, 71) }
-    val soldMessage = "$count sold in the past 15 days"
+    val soldMessage = "$count bought in the past 15 days"
     
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
     ) {
-        // Fire emoji for indicator
-        Text(
-           // text = "🔥",
-            text = "🛍️",
-            fontSize = 24.sp,
-            modifier = Modifier.padding(end = 8.dp)
-        )
+        // Emoji icon commented out per user request
+        // Text(
+        //    // text = "🔥",
+        //     text = "🛍️",
+        //     fontSize = 24.sp,
+        //     modifier = Modifier.padding(end = 8.dp)
+        // )
         
         Text(
             text = soldMessage,
