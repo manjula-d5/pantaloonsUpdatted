@@ -26,4 +26,11 @@
     <string name="splash_logo_description">Pantaloons logo</string>
     <string name="variant_size_text">Size: %1$s</string>
     <string name="no_variants_message">No color variants available</string>
+
+    <!-- TryOn Configuration -->
+    <!-- <string name="tryon_base_url">http://103.189.89.76:8080/</string> -->
+    <!-- <string name="tryon_base_url">http://10.1.2.116:8085/</string> -->
+    <string name="tryon_base_url">https://storiq.samarthainfo.com/</string>
+    <string name="tryon_auth_token"></string>
+    <string name="tryon_poll_interval_ms">5000</string>
 </resources>

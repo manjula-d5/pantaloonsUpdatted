@@ -3,7 +3,7 @@ package com.rfid.rfidreader.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.rfid.rfidreader.BuildConfig
+import com.rfid.rfidreader.R
 import com.rfid.rfidreader.data.SessionManager
 import com.rfid.rfidreader.data.TryOnRepository
 import com.rfid.rfidreader.data.api.ColorVariantItem
@@ -106,6 +106,7 @@ class TryOnViewModel(
 
     init {
         viewModelScope.launch {
+            val pollIntervalMs = context?.getString(R.string.tryon_poll_interval_ms)?.toLongOrNull() ?: 5000L
             while (isActive) {
                 if (sessionManager?.isLoggedIn == true) {
                     refresh()
@@ -115,7 +116,7 @@ class TryOnViewModel(
                         _uiState.update { it.copy(isLoading = false) }
                     }
                 }
-                delay(BuildConfig.TRYON_POLL_INTERVAL_MS)
+                delay(pollIntervalMs)
             }
         }
     }
