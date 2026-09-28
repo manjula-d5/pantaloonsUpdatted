@@ -21,9 +21,11 @@ import com.google.gson.JsonParser
 import com.rfid.rfidreader.model.TryOnDisplayItem
 import com.rfid.rfidreader.model.TryOnItemMapper
 import com.rfid.rfidreader.util.AppLogger
+import okhttp3.Authenticator
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import kotlinx.coroutines.runBlocking
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -247,17 +249,60 @@ class TryOnRepository(
                     .build()
             }
             
+            val baseUrl = context?.getString(R.string.tryon_base_url)?.trim()
+                ?.ifEmpty { "https://storiq.samarthainfo.com/" }
+                ?: "https://storiq.samarthainfo.com/"
+
+            lateinit var repositoryInstance: TryOnRepository
+
+            val tokenAuthenticator = Authenticator { _, response ->
+                if (responseCount(response) >= 2) {
+                    AppLogger.log("OkHttp Authenticator: Max retries reached, giving up on 401")
+                    return@Authenticator null
+                }
+
+                val failedToken = response.request.header("Authorization")
+                    ?.removePrefix("Bearer ")?.removePrefix("bearer ")?.trim()
+
+                val currentToken = sessionManager?.authToken?.trim()
+
+                // If another thread already refreshed the token, use the new token directly
+                if (!currentToken.isNullOrBlank() && currentToken != failedToken) {
+                    AppLogger.log("OkHttp Authenticator: Token already refreshed by another thread, retrying request")
+                    val headerValue = if (currentToken.startsWith("Bearer ", ignoreCase = true)) currentToken else "Bearer $currentToken"
+                    return@Authenticator response.request.newBuilder()
+                        .header("Authorization", headerValue)
+                        .build()
+                }
+
+                val currentRefreshToken = sessionManager?.refreshToken
+                if (currentRefreshToken.isNullOrBlank()) {
+                    AppLogger.log("OkHttp Authenticator: No refresh token stored, cannot auto-refresh")
+                    return@Authenticator null
+                }
+
+                AppLogger.log("OkHttp Authenticator: 401 received, attempting automatic token refresh...")
+                val refreshed = runBlocking { repositoryInstance.refreshToken() }
+                if (refreshed) {
+                    val newToken = sessionManager?.authToken
+                    if (!newToken.isNullOrBlank()) {
+                        val headerValue = if (newToken.startsWith("Bearer ", ignoreCase = true)) newToken else "Bearer $newToken"
+                        return@Authenticator response.request.newBuilder()
+                            .header("Authorization", headerValue)
+                            .build()
+                    }
+                }
+                null
+            }
+
             val okHttpClient = OkHttpClient.Builder()
                 .addInterceptor(fileLoggingInterceptor) // Add file logger
                 .addInterceptor(authInterceptor)
                 .addInterceptor(noCacheInterceptor)  // Add no-cache interceptor
                 .addInterceptor(logging)
+                .authenticator(tokenAuthenticator)   // Handle 401 token refresh automatically
                 .cache(null)  // Disable OkHttp cache completely
                 .build()
-
-            val baseUrl = context?.getString(R.string.tryon_base_url)?.trim()
-                ?.ifEmpty { "https://storiq.samarthainfo.com/" }
-                ?: "https://storiq.samarthainfo.com/"
 
             val retrofit = Retrofit.Builder()
                 .baseUrl(baseUrl.ensureTrailingSlash())
@@ -265,10 +310,21 @@ class TryOnRepository(
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
 
-            return TryOnRepository(
+            repositoryInstance = TryOnRepository(
                 service = retrofit.create(TryOnApiService::class.java),
                 sessionManager = sessionManager
             )
+            return repositoryInstance
+        }
+
+        private fun responseCount(response: okhttp3.Response): Int {
+            var result = 1
+            var priorResponse = response.priorResponse
+            while (priorResponse != null) {
+                result++
+                priorResponse = priorResponse.priorResponse
+            }
+            return result
         }
 
         private fun String.ensureTrailingSlash(): String =

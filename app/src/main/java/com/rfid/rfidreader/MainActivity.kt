@@ -55,6 +55,14 @@ class MainActivity : ComponentActivity() {
                         viewModel = viewModel,
                         onLogout = {
                             AppLogger.log("Logout successful callback received in MainActivity")
+                            val isManualLogout = viewModel.uiState.value.isLoggingOut
+                            if (!isManualLogout) {
+                                android.widget.Toast.makeText(
+                                    this@MainActivity,
+                                    "Session expired. Please log in again.",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
                             isLoggedIn = false
                         }
                     )
