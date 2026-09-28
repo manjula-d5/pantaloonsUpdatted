@@ -1,7 +1,7 @@
 package com.rfid.rfidreader.data
 
 import android.content.Context
-import com.rfid.rfidreader.BuildConfig
+import com.rfid.rfidreader.R
 import com.rfid.rfidreader.data.api.CheckoutRequest
 import com.rfid.rfidreader.data.api.CheckoutResponse
 import com.rfid.rfidreader.data.api.ColorVariantItem
@@ -219,7 +219,8 @@ class TryOnRepository(
             val authInterceptor = Interceptor { chain ->
                 val originalRequest = chain.request()
                 val requestBuilder = originalRequest.newBuilder()
-                val token = sessionManager?.authToken?.trim() ?: BuildConfig.TRYON_AUTH_TOKEN.trim()
+                val defaultToken = context?.getString(R.string.tryon_auth_token)?.trim().orEmpty()
+                val token = sessionManager?.authToken?.trim()?.ifEmpty { null } ?: defaultToken
                 
                 if (token.isNotEmpty()) {
                     val headerValue = if (token.startsWith("Bearer ", ignoreCase = true)) token else "Bearer $token"
@@ -253,8 +254,13 @@ class TryOnRepository(
                 .addInterceptor(logging)
                 .cache(null)  // Disable OkHttp cache completely
                 .build()
+
+            val baseUrl = context?.getString(R.string.tryon_base_url)?.trim()
+                ?.ifEmpty { "https://storiq.samarthainfo.com/" }
+                ?: "https://storiq.samarthainfo.com/"
+
             val retrofit = Retrofit.Builder()
-                .baseUrl(BuildConfig.TRYON_BASE_URL.ensureTrailingSlash())
+                .baseUrl(baseUrl.ensureTrailingSlash())
                 .client(okHttpClient)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
