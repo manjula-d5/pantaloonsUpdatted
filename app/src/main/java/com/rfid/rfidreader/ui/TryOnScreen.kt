@@ -271,11 +271,13 @@ fun TryOnScreen(
                     uiState.filteredItems.isEmpty() -> EmptyState(onRetry = onRetry)
 
                     else -> {
+                        val totalItems = uiState.filteredItems.size
                         val selectedItemId = uiState.selectedItemId
-                        val isWelcomeVisible = selectedItemId == null && uiState.previewOverrideItem == null
+                        val isWelcomeVisible = totalItems > 1 && selectedItemId == null && uiState.previewOverrideItem == null
 
-                        // Intercept inbuilt system back button when on product preview screen
-                        val canGoBack = selectedItemId != null || uiState.previewOverrideItem != null
+                        // Intercept inbuilt system back button when on product preview screen with multiple items or preview override
+                        val showBackButton = totalItems > 1 || uiState.previewOverrideItem != null
+                        val canGoBack = showBackButton && (selectedItemId != null || uiState.previewOverrideItem != null)
                         BackHandler(enabled = canGoBack, onBack = onBack)
 
                         if (isWelcomeVisible) {
@@ -314,32 +316,34 @@ fun TryOnScreen(
                                     verticalArrangement = Arrangement.Top
                                 ) {
                                     // Back button
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable(onClick = onBack)
-                                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        IconButton(
-                                            onClick = onBack,
+                                    if (showBackButton) {
+                                        Row(
                                             modifier = Modifier
-                                                .background(Color(0xFFF3F4F6), CircleShape)
-                                                .size(48.dp)
+                                                .fillMaxWidth()
+                                                .clickable(onClick = onBack)
+                                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                contentDescription = "Back",
-                                                tint = Color(0xFF1BB8B4)
+                                            IconButton(
+                                                onClick = onBack,
+                                                modifier = Modifier
+                                                    .background(Color(0xFFF3F4F6), CircleShape)
+                                                    .size(48.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                    contentDescription = "Back",
+                                                    tint = Color(0xFF1BB8B4)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(12.dp))
+                                            Text(
+                                                text = "Back to Selection",
+                                                style = MaterialTheme.typography.titleMedium,
+                                                color = Color(0xFF4B5563),
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        Text(
-                                            text = "Back to Selection",
-                                            style = MaterialTheme.typography.titleMedium,
-                                            color = Color(0xFF4B5563),
-                                            fontWeight = FontWeight.Bold
-                                        )
                                     }
 
                                     // Main product section: Images LEFT + Details RIGHT
