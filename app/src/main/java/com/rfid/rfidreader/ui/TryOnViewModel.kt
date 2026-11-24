@@ -533,7 +533,30 @@ class TryOnViewModel(
                     refresh(forceSpinner)
                     return
                 } else {
-                    AppLogger.log("Token refresh failed or unauthorized. Clearing session and triggering logout.")
+                    AppLogger.log("Token refresh failed or unauthorized. Attempting background auto-login...")
+                    val username = sessionManager?.savedUsername
+                    val password = sessionManager?.savedPassword
+
+                    if (!username.isNullOrBlank() && !password.isNullOrBlank()) {
+                        try {
+                            val loginResponse = repository.login(username, password)
+                            if (loginResponse.isSuccessful && loginResponse.body()?.status == 200) {
+                                val body = loginResponse.body()?.data
+                                if (body != null) {
+                                    AppLogger.log("Background auto-login successful!")
+                                    sessionManager.authToken = body.accessToken
+                                    sessionManager.refreshToken = body.refreshToken
+                                    sessionManager.isLoggedIn = true
+                                    refresh(forceSpinner)
+                                    return
+                                }
+                            }
+                        } catch (e: Exception) {
+                            AppLogger.logError("Background auto-login exception", e)
+                        }
+                    }
+
+                    AppLogger.log("Auto-login failed. Clearing session and triggering logout.")
                     sessionManager?.logout()
                     _uiState.update { state ->
                         state.copy(

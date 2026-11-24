@@ -49,7 +49,9 @@ fun LoginScreen(
         uiState = uiState,
         onLogin = viewModel::login,
         onLoginSuccess = onLoginSuccess,
-        resetSuccess = viewModel::resetSuccess
+        resetSuccess = viewModel::resetSuccess,
+        initialUsername = viewModel.savedUsername,
+        initialPassword = viewModel.savedPassword
     )
 }
 
@@ -58,10 +60,12 @@ private fun LoginContent(
     uiState: LoginUiState,
     onLogin: (String, String) -> Unit,
     onLoginSuccess: () -> Unit,
-    resetSuccess: () -> Unit
+    resetSuccess: () -> Unit,
+    initialUsername: String = "",
+    initialPassword: String = ""
 ) {
-    var username by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf(initialUsername) }
+    var password by remember { mutableStateOf(initialPassword) }
     var passwordVisible by remember { mutableStateOf(false) }
     var localErrorMessage by remember { mutableStateOf("") }
     
@@ -74,6 +78,12 @@ private fun LoginContent(
         if (uiState.loginSuccess) {
             onLoginSuccess()
             resetSuccess()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (initialUsername.isNotBlank() && initialPassword.isNotBlank()) {
+            onLogin(initialUsername, initialPassword)
         }
     }
 

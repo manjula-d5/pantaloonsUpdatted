@@ -29,6 +29,12 @@ class LoginViewModel(
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
+    val savedUsername: String
+        get() = sessionManager?.savedUsername.orEmpty()
+
+    val savedPassword: String
+        get() = sessionManager?.savedPassword.orEmpty()
+
     fun login(usernameOrEmail: String, password: String) {
         val cleanUsername = usernameOrEmail.trim()
         val cleanPassword = password.trim()
@@ -45,6 +51,8 @@ class LoginViewModel(
                         sessionManager?.let {
                             it.authToken = body.data.accessToken
                             it.refreshToken = body.data.refreshToken
+                            it.savedUsername = cleanUsername
+                            it.savedPassword = cleanPassword
                             it.storeId = body.data.user?.storeId
                             it.trialRoomId = body.data.user?.trialRoomId ?: -1
                             it.trialRoomName = body.data.user?.trialRoomName

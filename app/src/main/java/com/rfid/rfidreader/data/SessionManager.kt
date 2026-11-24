@@ -15,7 +15,21 @@ class SessionManager(context: Context) {
         private const val KEY_STORE_ID = "store_id"
         private const val KEY_TRIAL_ROOM_ID = "trial_room_id"
         private const val KEY_TRIAL_ROOM_NAME = "trial_room_name"
+        private const val KEY_USERNAME = "saved_username"
+        private const val KEY_PASSWORD = "saved_password"
     }
+
+    var savedUsername: String?
+        get() = prefs.getString(KEY_USERNAME, null)
+        set(value) {
+            prefs.edit().putString(KEY_USERNAME, value).apply()
+        }
+
+    var savedPassword: String?
+        get() = prefs.getString(KEY_PASSWORD, null)
+        set(value) {
+            prefs.edit().putString(KEY_PASSWORD, value).apply()
+        }
 
     var trialRoomId: Int
         get() = prefs.getInt(KEY_TRIAL_ROOM_ID, -1)
@@ -61,6 +75,10 @@ class SessionManager(context: Context) {
 
     fun logout() {
         AppLogger.log("SessionManager: Performing logout/clearing session")
+        val username = savedUsername
+        val password = savedPassword
         prefs.edit().clear().apply()
+        savedUsername = username
+        savedPassword = password
     }
 }
